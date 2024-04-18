@@ -29,8 +29,13 @@ generated_warning() {
 
 for version; do
 	export version
-        echo $version
-	# rm -rf "$version/"
+
+	rm -rf "$version/"
+
+	if jq -e '.[env.version] | not' versions.json > /dev/null; then
+		echo "deleting $version ..."
+		continue
+	fi
 
 	phpVersions="$(jq -r '.[env.version].phpVersions | map(@sh) | join(" ")' versions.json)"
 	eval "phpVersions=( $phpVersions )"
@@ -40,27 +45,18 @@ for version; do
 	for phpVersion in "${phpVersions[@]}"; do
 		export phpVersion
 
-                echo $phpVersion
 		for variant in "${variants[@]}"; do
 			export variant
-			echo $variant
 
 			dir="$version/php$phpVersion/$variant"
-			echo $dir
-			# if I'm setting this up fresh, copy the current versions of my common scripts
-                        if [[ ! -d $dir ]]; then
-			  mkdir -p "$dir"
-			  cp -Rp common/* "$dir"
-		        fi
-                        if [[ -d $dir ]]; then
+			mkdir -p "$dir"
+
 			echo "processing $dir ..."
 
 			{
 				generated_warning
 				gawk -f "$jqt" Dockerfile.template
 			} > "$dir/Dockerfile"
-
-		        fi
 		done
 	done
 done
